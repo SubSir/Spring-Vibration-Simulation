@@ -1,10 +1,19 @@
+import ctypes
+import os
+
+# 获取当前进程 ID
+pid = os.getpid()
+# 设置进程优先级为高优先级
+handle = ctypes.windll.kernel32.OpenProcess(0x00000010, False, pid)
+ctypes.windll.kernel32.SetPriorityClass(handle, 0x00000080)  # HIGH_PRIORITY_CLASS
+
 import numpy as np
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 import sympy as sp
 
 # 定义常量
-n = 5  # 振子数量
+n = 12  # 振子数量
 length = 1.0
 length0 = 0.5
 mass = 1.0
@@ -60,7 +69,7 @@ for i in range(n):
 
 # 时间跨度
 t_span = (0, 10)
-t_eval = np.linspace(t_span[0], t_span[1], 400)
+t_eval = np.linspace(t_span[0], t_span[1], 100000)
 
 # 解ODE
 solution = solve_ivp(ode_func, t_span, initial_conditions, t_eval=t_eval)
