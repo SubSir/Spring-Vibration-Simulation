@@ -1,95 +1,64 @@
-class position:
-    x = 0.0
-    v = 0.0
-    a = 0.0
-    mass = 0.0
+import numpy as np
+from scipy.integrate import solve_ivp
+import matplotlib.pyplot as plt
+import sympy as sp
 
-    def __init__(self, x, v, a, mass):
-        self.x = x
-        self.v = v
-        self.a = a
-        self.mass = mass
+# 定义符号变量
+t = sp.symbols("t")
+q1 = sp.Function("q1")(t)  # 位移 q1(t)
+q1_dot = sp.diff(q1, t)  # 速度 q1'(t)
+q2 = sp.Function("q2")(t)  # 位移 q2(t)
+q2_dot = sp.diff(q2, t)  # 速度 q2'(t)
 
-    def update(self, dt, f):
-        self.v += self.a * dt
-        self.x += self.v * dt
-        self.a = f / self.mass
+# 定义常量
+k = 10.0  # 弹簧劲度系数
+m = 1.0  # 小球质量
 
+# 定义势能和动能
+V = 0.5 * k * (q1**2 + (q2 - q1) ** 2)  # 弹性势能
+T = 0.5 * m * (q1_dot**2 + q2_dot**2)  # 动能
 
-class spring:
-    length = 0.0
-    k = 0.0
-    pos = position(0.0, 0.0, 0.0, 0.0)
+# 定义拉格朗日量
+L = T - V
 
-    def __init__(self, length, k, x, mass):
-        self.length = length
-        self.k = k
-        self.pos = position(x, 0.0, 0.0, mass)
-        self.x1 = x - self.length / 2
-        self.x2 = x + self.length / 2
+# 计算拉格朗日方程
+lagrange_eq = [
+    sp.diff(sp.diff(L, q1_dot), t) - sp.diff(L, q1),
+    sp.diff(sp.diff(L, q2_dot), t) - sp.diff(L, q2),
+]
 
-    def update(self, dt, f):
-        self.pos.update(dt, f)
-
-    def force(self, x1, x2) -> float:
-        return self.k * (x2 - x1 - self.length)
-
-
-class chain:
-    spring_list = []
-    length = 0.0
-    k = 0.0
-    mass = 0.0
-    num = 0
-    particle = position(0.0, 0.0, 0.0, 0.0)
-
-    def __init__(self, length, k, mass, num, M, l0):
-        self.length = length
-        self.k = k
-        self.mass = mass
-        self.num = num
-
-        k1 = k * num
-        l1 = length / num
-        m1 = mass / num
-
-        for i in range(num):
-            self.spring_list.append(spring(l1, k1, l0 / num * (i + 0.5), m1))
-
-        self.particle = position(l0, 0.0, (l0 - length) * k / M, M)
-
-    def update(self, dt) -> float:
-        x = [0.0]
-        for i in range(self.num):
-            x.append(2 * self.spring_list[i].pos.x - x[-1])
-
-        force = []
-        for i in range(self.num):
-            force.append(self.spring_list[i].force(x[i], x[i + 1]))
-
-        self.spring_list[0].update(dt, -force[0] + force[1])
-        for i in range(1, self.num - 1):
-            self.spring_list[i].update(dt, -force[i - 1] + force[i + 1])
-        self.spring_list[self.num - 1].update(
-            dt, -force[self.num - 2] - self.particle.a * self.particle.mass
-        )
-
-        self.particle.update(dt, -force[self.num - 1])
-        return self.particle.x
+# 解出二阶导数 q1_ddot 和 q2_ddot
+q_ddot = [
+    sp.solve(lagrange_eq[0], q1.diff(t, t))[0],
+    sp.solve(lagrange_eq[1], q2.diff(t, t))[0],
+]
 
 
-def main():
-    length = 1.0
-    k = 1.0
-    mass = 1.0
-    num = 100
-    M = 2.0
-    l0 = 1.2
-    dt = 0.1
-    chain_ = chain(length, k, mass, num, M, l0)
-    for i in range(100):
-        print(chain_.update(dt))
+# 定义状态向量 [q1, q1_dot, q2, q2_dot]
+def ode_func(t, y):
+    y_dict = {q1: y[0], q1_dot: y[1], q2: y[2], q2_dot: y[3]}
+    q1_ddot_val = q_ddot[0].subs(y_dict)
+    q2_ddot_val = q_ddot[1].subs(y_dict)
+    return [y[1], q1_ddot_val, y[3], q2_ddot_val]
 
 
-if __name__ == "__main__":
-    main()
+# 定义初始条件
+initial_conditions = [1.0, 0.0, 0.0, 0.0]  # 初始位置和速度
+
+# 时间跨度
+t_span = (0, 10)
+t_eval = np.linspace(t_span[0], t_span[1], 400)
+
+# 解ODE
+solution = solve_ivp(ode_func, t_span, initial_conditions, t_eval=t_eval)
+
+# 绘制结果
+plt.figure(figsize=(10, 5))
+plt.plot(solution.t, solution.y[0], label="Position (q1)")
+plt.plot(solution.t, solution.y[2], label="Position (q2)")
+plt.xlabel("Time (s)")
+plt.ylabel("Position")
+plt.title("Spring-Mass System Simulation with Two Groups")
+plt.legend()
+plt.grid(True)
+plt.show()
