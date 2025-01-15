@@ -69,9 +69,21 @@ solution = solve_ivp(ode_func, t_span, initial_conditions, t_eval=t_eval)
 plt.figure(figsize=(10, 5))
 for i in range(n):
     plt.plot(solution.t, solution.y[2 * i], label=f"Position (q{i+1})")
+
+time = 0
+times = 0
+for i in range(1, len(solution.t) - 1):
+    if (
+        solution.y[2 * (n - 1)][i] > solution.y[2 * (n - 1)][i - 1]
+        and solution.y[2 * (n - 1)][i] > solution.y[2 * (n - 1)][i + 1]
+    ):
+        times += 1
+        time = solution.t[i]
+
+print("TIME: ", time / times)
 plt.xlabel("Time (s)")
 plt.ylabel("Position")
-plt.title("Spring-Mass System Simulation with n Groups and Spring Original Length")
+plt.title("Spring-Mass System Simulation with n Groups")
 plt.legend()
 plt.grid(True)
 plt.show()
